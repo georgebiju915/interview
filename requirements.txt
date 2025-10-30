@@ -1,7 +1,7 @@
 # --- Core FastAPI stack ---
 fastapi>=0.109.0
 uvicorn[standard]>=0.22.0
-gunicorn>=21.2.0
+gunicorn
 
 # --- Database + ORM ---
 SQLAlchemy>=2.0.30
