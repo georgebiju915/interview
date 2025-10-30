@@ -16,7 +16,7 @@ python-dotenv>=1.0.1
 
 # --- Utilities ---
 requests>=2.31.0
-parser
+python-dateutil
 
 # --- Optional: if using asyncpg or psycopg for PostgreSQL ---
 # asyncpg>=0.29.0
