@@ -1,9 +1,23 @@
-fastapi
-uvicorn[standard]
-sqlalchemy
-pydantic
-alembic
-python-dotenv
-parser
-databases  # optional for async DB access
-requests   # for server batch calls (if this client will call remote server)
+# --- Core FastAPI stack ---
+fastapi>=0.109.0
+uvicorn[standard]>=0.22.0
+gunicorn>=21.2.0
+
+# --- Database + ORM ---
+SQLAlchemy>=2.0.30
+alembic>=1.13.2
+databases>=0.8.0          # optional async DB toolkit
+
+# --- Data validation ---
+pydantic>=2.7.0
+
+# --- Environment management ---
+python-dotenv>=1.0.1
+
+# --- Utilities ---
+requests>=2.31.0
+parser>=1.0
+
+# --- Optional: if using asyncpg or psycopg for PostgreSQL ---
+# asyncpg>=0.29.0
+# psycopg[binary,pool]>=3.2.1
