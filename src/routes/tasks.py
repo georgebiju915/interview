@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List
@@ -42,9 +43,24 @@ def update_task(task_id: str, payload: TaskUpdate, offline: bool = Query(False),
         raise HTTPException(status_code=404, detail="Task not found")
     return updated
 
-@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: str, offline: bool = Query(False), db: Session = Depends(get_db)):
+@router.delete("/{task_id}")
+def delete_task(
+    task_id: str,
+    offline: bool = Query(False, description="Queue deletion if offline"),
+    db: Session = Depends(get_db)
+):
+    """
+    Soft delete a task (mark is_deleted=True).
+    Returns 404 with consistent error format if not found.
+    """
     deleted = task_service.delete_task(db, task_id, offline=offline)
+
     if not deleted:
         raise HTTPException(status_code=404, detail="Task not found")
-    return
+
+    return {
+        "message": "Task marked as deleted" if not offline else "Task deletion queued for sync",
+        "task_id": task_id,
+        "offline": offline,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
