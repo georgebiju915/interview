@@ -35,14 +35,14 @@ def create_task(payload: TaskCreate, offline: bool = Query(False), db: Session =
     task = task_service.create_task(db, title=payload.title, description=payload.description, offline=offline)
     return task
 
-@router.put("/{task_id}", response_model=TaskOut)
+@router.put("/update/{task_id}", response_model=TaskOut)
 def update_task(task_id: str, payload: TaskUpdate, offline: bool = Query(False), db: Session = Depends(get_db)):
     updated = task_service.update_task(db, task_id, updates=payload.dict(exclude_none=True), offline=offline)
     if not updated:
         raise HTTPException(status_code=404, detail="Task not found")
     return updated
 
-@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/delete/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(task_id: str, offline: bool = Query(False), db: Session = Depends(get_db)):
     deleted = task_service.delete_task(db, task_id, offline=offline)
     if not deleted:
