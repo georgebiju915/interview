@@ -68,11 +68,13 @@
       <button id="renderBtn">Use Render API</button>
     </div>
     <p class="status">Active API: <strong id="apiUrl"></strong></p>
+
     <div>
       <input type="text" id="title" placeholder="Task title" />
       <textarea id="desc" placeholder="Task description"></textarea>
       <button id="addBtn">Add Task</button>
     </div>
+
     <h3>Tasks</h3>
     <div id="taskList"></div>
   </div>
@@ -90,6 +92,7 @@
     let API_BASE = "https://interview-91dh.onrender.com/api";
     apiText.textContent = API_BASE;
 
+    // Switch API endpoints
     localBtn.onclick = () => {
       API_BASE = "http://127.0.0.1:8000/api";
       apiText.textContent = API_BASE;
@@ -106,7 +109,7 @@
     async function loadTasks() {
       taskList.innerHTML = "<p>Loading tasks...</p>";
       try {
-        const res = await fetch(`${API_BASE}/tasks`);
+        const res = await fetch(`${API_BASE}/tasks/`);
         if (!res.ok) throw new Error(`Error ${res.status}`);
         const data = await res.json();
         renderTasks(data);
@@ -115,7 +118,7 @@
       }
     }
 
-    // Render tasks in the list
+    // Render task list
     function renderTasks(tasks) {
       if (!tasks.length) {
         taskList.innerHTML = "<p>No tasks yet.</p>";
@@ -143,7 +146,7 @@
       if (!title) return alert("Title is required!");
       const payload = { title, description: desc };
       try {
-        const res = await fetch(`${API_BASE}/tasks`, {
+        const res = await fetch(`${API_BASE}/tasks/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -157,7 +160,7 @@
       }
     };
 
-    // Toggle completion
+    // Toggle completion status
     async function toggleTask(id, completed) {
       try {
         const res = await fetch(`${API_BASE}/tasks/${id}`, {

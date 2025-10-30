@@ -1,57 +1,87 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-
-from .tasks import get_db
+from datetime import datetime
 from ..database import Sessionlocal
-from ..services.sync_service import process_sync_once, sync_pending_tasks
+from ..services.sync_service import process_sync_once
 from ..services.local_queue import sync_queue
 
-# Create an API router for sync-related endpoints
-router = APIRouter(prefix="/api/sync", tags=["sync"])
+router = APIRouter(prefix="/api/sync", tags=["Sync"])
 
-# Re-initialize the router (this overrides the one above — probably unintentional)
-router = APIRouter()
 
-@router.post("/")
-def trigger_sync(db: Session = Depends(get_db)):
-    # This endpoint triggers the synchronization of all pending tasks
-    # Calls a service function that handles syncing items waiting in the queue
-    result = sync_pending_tasks(db)
-    # Returns a summary of the sync process
-    return {"message": "Sync complete", **result}
-
+# --- Dependency ---
 def get_db():
-    # Dependency to get a database session
+    """Provide a SQLAlchemy DB session for each request."""
     db = Sessionlocal()
     try:
         yield db
     finally:
-        # Ensures the database connection is closed after the request
         db.close()
 
-@router.post("/")
-def trigger_sync(db: Session = Depends(get_db)):
-    """
-    Trigger one sync batch.
-    In a real application the client would call this when connectivity is restored,
-    or the server process would run a background sync worker.
-    """
-    # Runs one batch of the sync process using the provided database session
-    result = process_sync_once(db)
-    # Returns detailed information about the sync results
-    return {
-        "success": True,
-        "synced_items": result.get("synced_items"),
-        "failed_items": result.get("failed_items"),
-        "conflicts": result.get("conflicts"),
-        "remaining_in_queue": result.get("remaining")
-    }
 
+# --- POST /api/sync ---
+@router.post("/")
+def trigger_sync(db: Session = Depends(get_db), request: Request = None):
+    """
+    Trigger a manual synchronization batch.
+    Processes pending items from the local queue and applies changes to DB.
+    """
+    try:
+        result = process_sync_once(db)
+        return {
+            "message": "Sync completed successfully",
+            "synced_items": result.get("synced_items", 0),
+            "failed_items": result.get("failed_items", 0),
+            "conflicts": result.get("conflicts", []),
+            "remaining_in_queue": result.get("remaining", 0),
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+
+
+# --- GET /api/sync/status ---
 @router.get("/status")
-def status():
-    # Endpoint to check the current synchronization status
-    # Returns how many tasks are still pending and whether the system is online
+def get_sync_status():
+    """
+    Returns the current synchronization status.
+    """
+    try:
+        return {
+            "pending_sync_count": sync_queue.size(),
+            "is_online": True,  # TODO: add actual connectivity check
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get sync status: {str(e)}")
+
+
+# --- POST /api/sync/batch ---
+@router.post("/batch")
+def batch_sync(db: Session = Depends(get_db)):
+    """
+    Perform a batch sync operation (used for server-side batch processing).
+    """
+    try:
+        result = process_sync_once(db)
+        return {
+            "message": "Batch sync complete",
+            "synced_items": result.get("synced_items", 0),
+            "failed_items": result.get("failed_items", 0),
+            "conflicts": result.get("conflicts", []),
+            "remaining_in_queue": result.get("remaining", 0),
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch sync failed: {str(e)}")
+
+
+# --- GET /api/sync/health ---
+@router.get("/health")
+def health_check():
+    """
+    Simple health check endpoint for monitoring.
+    """
     return {
-        "pending_sync_count": sync_queue.size(),
-        "is_online": True  # Placeholder: in a real case, perform an actual connectivity check
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
     }

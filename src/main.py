@@ -1,59 +1,89 @@
 from datetime import datetime
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .database import engine, Base
+from .database import Base, engine
 from .routes import tasks, sync
+from .utils import now_iso
 
-# Set up the database tables (simple for development; use migrations in production)
+
+# ============================================================
+# 🚀 FastAPI Application Setup
+# ============================================================
+
+app = FastAPI(
+    title="Task Sync API",
+    version="1.0.0",
+    description="A backend API supporting offline task management and sync queueing.",
+)
+
+# Create all database tables (for dev only — use Alembic in production)
 Base.metadata.create_all(bind=engine)
 
-# Create the main FastAPI application
-app = FastAPI(title="Task Sync API (local queue + LWW)")
-# Enable CORS so the frontend can talk to this API (open to all origins for now)
 
+# ============================================================
+# 🌐 CORS Configuration
+# ============================================================
+# In development, allow all origins.
+# For production, replace with frontend domain.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or specify ["http://127.0.0.1:5500"] if you want to restrict
+    allow_origins=["*"],  # e.g., ["https://yourfrontend.com"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Connect routes for tasks and sync operations
-app.include_router(tasks.router, prefix="/api/tasks", tags=["Tasks"])
-app.include_router(sync.router, prefix="/api/sync", tags=["Sync"])
+
+# ============================================================
+# 🔗 API Routers
+# ============================================================
+# Routes are modular: /api/tasks for CRUD, /api/sync for syncing
+app.include_router(tasks.router)
+app.include_router(sync.router)
+
+
+# ============================================================
+# 💡 Utility Endpoints
+# ============================================================
 
 @app.get("/")
 def root():
-    """Simple root endpoint to check if the API is running."""
-    return {"message": "TaskSync API is running 🚀"}
+    """Basic root route — used to confirm the API is alive."""
+    return {
+        "message": "🚀 Task Sync API is running successfully!",
+        "docs": "/docs",
+        "health": "/api/health"
+    }
 
-app.include_router(tasks.router)
-
-app.include_router(sync.router)
 
 @app.get("/api/health")
-def health():
-    """Health check endpoint."""
-    from .utils import now_iso
-    return {"status": "ok", "timestamp": now_iso()}
+def health_check():
+    """Health check endpoint for uptime monitoring."""
+    return {
+        "status": "ok",
+        "timestamp": now_iso(),
+        "environment": "development"
+    }
 
-# Catch all unhandled errors and return a clean JSON response
+
+# ============================================================
+# ⚠️ Global Exception Handler
+# ============================================================
+
 @app.exception_handler(Exception)
 async def custom_exception_handler(request: Request, exc: Exception):
     """
-    Catch all exceptions and return custom formatted error responses.
+    Catch all unhandled exceptions and return a consistent JSON response.
     """
     status_code = getattr(exc, "status_code", 500)
-    error_message = getattr(exc, "detail", str(exc))
+    message = getattr(exc, "detail", str(exc))
 
     return JSONResponse(
         status_code=status_code,
         content={
-            "error": error_message,
+            "error": message,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "path": str(request.url.path),
         },
