@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+alembic
+python-dotenv
+parser
+databases  # optional for async DB access
+requests   # for server batch calls (if this client will call remote server)
